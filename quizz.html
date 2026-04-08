@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Schoolab 2°1 - Quizz</title>
+    <style>
+        :root {
+            --primary: #6366f1;
+            --success: #10b981;
+            --danger: #ef4444;
+            --dark: #1e293b;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(-45deg, #ffa600, #9f0eff, #d33201, #ce0056);
+            background-size: 400% 400%;
+            animation: gradientBG 15s ease infinite;
+            margin: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        @keyframes gradientBG {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+
+        #quiz-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            width: 90%;
+            max-width: 500px;
+            padding: 2.5rem;
+            border-radius: 24px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.2);
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+
+        #progress-text {
+            background: #f1f5f9;
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        #score-text { font-weight: 800; color: var(--dark); }
+
+        h2 { 
+            font-size: 1.5rem; 
+            color: var(--dark); 
+            line-height: 1.3;
+            margin-bottom: 1.5rem;
+        }
+
+        .options-grid {
+            display: grid;
+            gap: 12px;
+        }
+
+        .btn-option {
+            padding: 16px 20px;
+            border: 2px solid #f1f5f9;
+            border-radius: 16px;
+            background: white;
+            cursor: pointer;
+            text-align: left;
+            font-size: 1rem;
+            font-weight: 500;
+            transition: all 0.2s ease;
+            color: var(--dark);
+        }
+
+        .btn-option:hover:not(:disabled) {
+            border-color: var(--primary);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(99, 102, 241, 0.1);
+        }
+
+        .correct { background-color: var(--success) !important; color: white; border-color: var(--success); }
+        .wrong { background-color: var(--danger) !important; color: white; border-color: var(--danger); }
+
+        .btn-main {
+            width: 100%;
+            padding: 14px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 1rem;
+            margin-top: 20px;
+            transition: 0.3s;
+        }
+
+        #next-btn { 
+            background: var(--dark); 
+            color: white; 
+            display: none; 
+        }
+
+        #next-btn:hover { opacity: 0.9; transform: scale(1.02); }
+
+        .btn-secondary { 
+            display: block;
+            text-decoration: none;
+            text-align: center;
+            color: #64748b;
+            font-size: 0.9rem;
+            margin-top: 15px;
+        }
+
+        .results { text-align: center; display: none; }
+    </style>
+</head>
+<body>
+
+<div id="quiz-container">
+    <div id="quiz-ui">
+        <div class="header">
+            <span id="progress-text">QUESTION 1 / 15</span>
+            <span id="score-text">SCORE : 0</span>
+        </div>
+        
+        <h2 id="question-label">Préparation du quiz...</h2>
+        
+        <div id="options-box" class="options-grid"></div>
+
+        <button id="next-btn" class="btn-main" onclick="handleNext()">Continuer →</button>
+        <a href="index.html" class="btn-secondary">Quitter le quiz</a>
+    </div>
+
+    <div id="result-ui" class="results">
+        <div style="font-size: 4rem;">🏆</div>
+        <h2>Quiz Terminé !</h2>
+        <p id="final-stats" style="font-size: 1.1rem; color: #475569; margin-bottom: 30px;"></p>
+        <button class="btn-main" style="background: var(--success); color: white;" onclick="location.reload()">Rejouer</button>
+        <a href="index.html" class="btn-secondary">Retour au menu principal</a>
+    </div>
+</div>
+
+<script>
+    const quizData = [
+        { q: "Question 1 : Que veut dire l'acronyme SICIT ?", options: ["Science Ingénieur Création Innovation Technologique", "Système d'Information pour la Communication et l'Informatisation des Territoires", "Système d'Information pour la Communication et l'Informatisation des Territoires", "Système d'Information pour la Communication et l'Informatisation des Territoires"], correct: 0 },
+        { q: "Question 2 : Quelle solution avons-nous trouver pour moins polluer lors des 15 derniers km d'une livraison ?", options: ["Un robot chien", "Un drone", "Un vélo électrique", "Un camion"], correct: 1 },
+        { q: "Question 3 : Dans notre groupe , quel robot est allé le plus loin de la compétition ?", options: ["Jean-Bonneau du 13", "Petit Yama", "Les Sinje", "Vohlt"], correct: 1 },
+        { q: "Question 4 : Quel est le doctorant qui nous a fait une présentation en anglais ?", options: ["Mathieu", "Pierre", "Marie", "Matias"], correct: 3 },
+        { q: "Question 5 : De quelles entreprise venaient les différents doctorants et ingénieurs ?", options: ["Total / Spa", "Sps / Pythagore", "St / N Vidia", "Stm / Thalès"], correct: 3 },
+        { q: "Question 6 : Quel objet nous ont présenté les premiers doctorants qui sont venus ?", options: ["Stéthoscope", "Carte mère", "Electrode", "Laxatif"], correct: 2 },
+        { q: "Question 7 : Que produit l'entreprise StMicroéléctronique ?", options: ["Puces électroniques", "Voitures électriques", "Ordinateurs", "Téléphones mobiles"], correct: 0 },
+        { q: "Question 8 : Lequel d'e ces services ropose Thalès ?", options: ["Cyber Sécurité", "Bancaire", "Défence", "Tout"], correct: 3 },
+        { q: "Question 9 : Quelle entreprise a été rachetée par Thalès pour produire des puces?" , options: ["Airbus", "Gemalto", "Samsung", "Xiaomi"], correct: 1 },
+        { q: "Question 10 : Lors de notre première activité schoolab , quelle maladie avons nous trouver ?", options: ["La Maladie de Crone", "Parkinson", "L'Alzheimer", "Le Diabète"], correct: 1 },
+        { q: "Question 11 : Que veut dire HTML ?", options: ["Hypertext Markup Language", "High Tech Modern Language", "Home Tool Markup Language", "Hyperlink and Text Markup Language"], correct: 0 },
+        { q: "Question 12 : Quel est le plastic utilisé sur l'imprimante 3D ?", options: ["PLA", "ABS", "PETG", "TPU"], correct: 0 },
+        { q: "Question 13 : Quelle application avons nous utilisé pour coder le robot serveur ?", options: ["Make code", "Scratch", "Python", "Unreal Ungine"], correct: 0 },
+        { q: "Question 14 : Quel est le nom du logiciel de modélisation 3D qu'on nous a enseigné ?", options: ["Blender", "Maya", "Cinema 4D", "SolidWorks"], correct: 4 },
+        { q: "Question 15 : Avez vous appris quelque chose ?", options: ["oui", "non", "intéressant", "je ne m'en souciais pas"], correct: 0 }
+    ];
+
+    let currentStep = 0;
+    let score = 0;
+
+    function initQuiz() {
+        const current = quizData[currentStep];
+        document.getElementById('progress-text').innerText = `QUESTION ${currentStep + 1} / ${quizData.length}`;
+        document.getElementById('question-label').innerText = current.q;
+        document.getElementById('next-btn').style.display = 'none';
+        
+        const box = document.getElementById('options-box');
+        box.innerHTML = '';
+
+        current.options.forEach((opt, i) => {
+            const btn = document.createElement('button');
+            btn.className = 'btn-option';
+            btn.innerText = opt;
+            btn.onclick = () => validate(i, btn);
+            box.appendChild(btn);
+        });
+    }
+
+    function validate(index, selectedBtn) {
+        const correctIdx = quizData[currentStep].correct;
+        const allBtns = document.querySelectorAll('.btn-option');
+
+        allBtns.forEach(b => b.disabled = true);
+
+        if (index === correctIdx) {
+            selectedBtn.classList.add('correct');
+            score++;
+        } else {
+            selectedBtn.classList.add('wrong');
+            allBtns[correctIdx].classList.add('correct');
+        }
+
+        document.getElementById('score-text').innerText = `SCORE : ${score}`;
+        document.getElementById('next-btn').style.display = 'block';
+    }
+
+    function handleNext() {
+        currentStep++;
+        if (currentStep < quizData.length) {
+            initQuiz();
+        } else {
+            showFinalScreen();
+        }
+    }
+
+    function showFinalScreen() {
+        document.getElementById('quiz-ui').style.display = 'none';
+        const resUI = document.getElementById('result-ui');
+        resUI.style.display = 'block';
+        document.getElementById('final-stats').innerText = `Vous avez obtenu un score de ${score} sur ${quizData.length}.`;
+    }
+
+    initQuiz();
+</script>
+
+</body>
+</html>
