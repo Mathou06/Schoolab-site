@@ -270,8 +270,8 @@
         </header>
 
         <div class="tabs">
-            <button class="tab-button active" onclick="switchTab('public')">Posts</button>
-            <button class="tab-button" onclick="switchTab('post')">Poster mon message</button>
+            <button class="tab-button active" onclick="switchTab('public', event)">Posts</button>
+            <button class="tab-button" onclick="switchTab('post', event)">Poster mon message</button>
         </div>
 
         <div id="public" class="tab-content active">
@@ -318,35 +318,59 @@
         </div>
     </div>
 
-    <script>
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, deleteDoc, doc, onSnapshot, query, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: import.meta.env?.VITE_FIREBASE_API_KEY || "",
+            authDomain: import.meta.env?.VITE_FIREBASE_AUTH_DOMAIN || "",
+            projectId: import.meta.env?.VITE_FIREBASE_PROJECT_ID || "",
+            storageBucket: import.meta.env?.VITE_FIREBASE_STORAGE_BUCKET || "",
+            messagingSenderId: import.meta.env?.VITE_FIREBASE_MESSAGING_SENDER_ID || "",
+            appId: import.meta.env?.VITE_FIREBASE_APP_ID || ""
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const postsCollection = collection(db, "posts");
+
         const CORRECT_PASSWORD = "Vauv26";
-        const STORAGE_KEY = "padlet_posts";
 
-        function loadPosts() {
-            const posts = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-            const container = document.getElementById('posts-container');
-            
-            if (posts.length === 0) {
-                container.innerHTML = '<div class="empty-state"><p>Aucun post pour le moment. Soyez le premier à partager!</p></div>';
-                return;
-            }
+        function listenToPosts() {
+            const q = query(postsCollection, orderBy("date", "desc"));
+            onSnapshot(q, (snapshot) => {
+                const container = document.getElementById('posts-container');
+                
+                if (snapshot.empty) {
+                    container.innerHTML = '<div class="empty-state"><p>Aucun post pour le moment. Soyez le premier à partager!</p></div>';
+                    return;
+                }
 
-            container.innerHTML = posts.map((post, index) => `
-                <div class="post-card">
-                    <div class="post-header">
-                        <div>
-                            <div class="post-author">${escapeHtml(post.author)}</div>
-                            <div class="post-date">${formatDate(post.date)}</div>
+                let htmlContent = "";
+                snapshot.forEach((doc) => {
+                    const post = doc.data();
+                    const id = doc.id;
+                    htmlContent += `
+                        <div class="post-card">
+                            <div class="post-header">
+                                <div>
+                                    <div class="post-author">${escapeHtml(post.author)}</div>
+                                    <div class="post-date">${formatDate(post.date)}</div>
+                                </div>
+                                <button class="delete-btn" onclick="deletePost('${id}')" title="Supprimer ce post">🗑️</button>
+                            </div>
+                            ${post.image ? `<img src="${post.image}" alt="Image du post" class="post-image">` : ''}
+                            <div class="post-content">${escapeHtml(post.message).replace(/\n/g, '<br>')}</div>
                         </div>
-                        <button class="delete-btn" onclick="deletePost(${index})" title="Supprimer ce post">🗑️</button>
-                    </div>
-                    ${post.image ? `<img src="${post.image}" alt="Image du post" class="post-image">` : ''}
-                    <div class="post-content">${escapeHtml(post.message).replace(/\n/g, '<br>')}</div>
-                </div>
-            `).join('');
+                    `;
+                });
+                container.innerHTML = htmlContent;
+            });
         }
 
         function formatDate(timestamp) {
+            if (!timestamp) return "";
             const date = new Date(timestamp);
             return date.toLocaleDateString('fr-FR', { 
                 year: 'numeric', 
@@ -363,21 +387,21 @@
             return div.innerHTML;
         }
 
-        function deletePost(index) {
+        window.deletePost = async function(id) {
             const code = prompt('Entrez le code de suppression :');
             if (code === CORRECT_PASSWORD) {
-                const posts = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-                posts.splice(index, 1);
-                localStorage.setItem(STORAGE_KEY, JSON.stringify(posts));
-                loadPosts();
-                alert('Post supprimé avec succès!');
+                try {
+                    await deleteDoc(doc(db, "posts", id));
+                    alert('Post supprimé avec succès!');
+                } catch (error) {
+                    alert('Erreur lors de la suppression.');
+                }
             } else {
                 alert('Code incorrect. Suppression annulée.');
             }
         }
 
-        function switchTab(tabName) {
-            // Masquer tous les onglets
+        window.switchTab = function(tabName, event) {
             document.querySelectorAll('.tab-content').forEach(tab => {
                 tab.classList.remove('active');
             });
@@ -385,24 +409,19 @@
                 btn.classList.remove('active');
             });
 
-            // Afficher l'onglet sélectionné
             document.getElementById(tabName).classList.add('active');
-            event.target.classList.add('active');
-
-            // Recharger les posts si on regarde l'onglet public
-            if (tabName === 'public') {
-                loadPosts();
+            if (event && event.target) {
+                event.target.classList.add('active');
             }
         }
 
-        function submitPost() {
+        window.submitPost = function() {
             const author = document.getElementById('author').value.trim();
             const message = document.getElementById('message').value.trim();
             const password = document.getElementById('password').value;
             const imageInput = document.getElementById('image');
             const passwordError = document.getElementById('password-error');
 
-            // Validation du mot de passe
             if (password !== CORRECT_PASSWORD) {
                 passwordError.textContent = '❌ Mot de passe incorrect';
                 return;
@@ -410,13 +429,11 @@
 
             passwordError.textContent = '';
 
-            // Validation des champs obligatoires
             if (!author || !message) {
                 alert('Veuillez remplir tous les champs obligatoires');
                 return;
             }
 
-            // Traiter l'image
             if (imageInput.files.length > 0) {
                 const file = imageInput.files[0];
 
@@ -435,39 +452,31 @@
             }
         }
 
-        function savePost(author, message, image) {
-            const posts = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-            
-            const newPost = {
-                author,
-                message,
-                image,
-                date: new Date().toISOString()
-            };
+        async function savePost(author, message, image) {
+            try {
+                await addDoc(postsCollection, {
+                    author: author,
+                    message: message,
+                    image: image,
+                    date: new Date().toISOString()
+                });
 
-            posts.push(newPost);
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(posts));
+                document.getElementById('author').value = '';
+                document.getElementById('message').value = '';
+                document.getElementById('password').value = '';
+                document.getElementById('image').value = '';
 
-            // Réinitialiser le formulaire
-            document.getElementById('author').value = '';
-            document.getElementById('message').value = '';
-            document.getElementById('password').value = '';
-            document.getElementById('image').value = '';
-
-            // Afficher le message de succès
-            const successMsg = document.getElementById('success-message');
-            successMsg.style.display = 'block';
-            setTimeout(() => {
-                successMsg.style.display = 'none';
-            }, 4000);
+                const successMsg = document.getElementById('success-message');
+                successMsg.style.display = 'block';
+                setTimeout(() => {
+                    successMsg.style.display = 'none';
+                }, 4000);
+            } catch (error) {
+                alert("Erreur lors de la publication sur Firebase.");
+            }
         }
 
-        function isValidEmail(email) {
-            const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            return re.test(email);
-        }
-
-        loadPosts();
+        listenToPosts();
     </script>
 </body>
 </html>
